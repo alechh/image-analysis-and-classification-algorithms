@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.24)
+project(image_analysis_and_classification_algorithms)
+
+set(CMAKE_CXX_STANDARD 17)
+
+add_executable(image_analysis_and_classification_algorithms main.cpp)
