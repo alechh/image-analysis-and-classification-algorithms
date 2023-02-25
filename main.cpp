@@ -2,7 +2,10 @@
 #include "opencv2/opencv.hpp"
 
 /*
- * Negative of an image
+ * Negative of an image.
+ *
+ * The function returns a negative, that is, an image in which each pixel has been replaced by its inverted color
+ * (255 minus the value of each channel in the pixel).
  */
 cv::Mat negative(const cv::Mat &src)
 {
@@ -23,6 +26,9 @@ cv::Mat negative(const cv::Mat &src)
 
 /*
  * Logarithmic transformation
+ *
+ * This function implements a logarithmic image brightness correction algorithm,
+ * which is used to improve contrast in an image where pixel values are shifted to darker tones.
  */
 cv::Mat logarithmic(const cv::Mat &src)
 {
@@ -43,6 +49,9 @@ cv::Mat logarithmic(const cv::Mat &src)
 
 /*
  * Stepwise transformation
+ *
+ * This function implements a threshold image brightness correction algorithm that applies
+ * a non-linear transformation to the brightness of each pixel based on the threshold value and gamma parameter.
  */
 cv::Mat stepwise(const cv::Mat &src, const double c, const double gamma)
 {
@@ -61,48 +70,12 @@ cv::Mat stepwise(const cv::Mat &src, const double c, const double gamma)
     return dst;
 }
 
-void contrastEnhancementInPixelChannel(uchar &pixel)
-{
-    if (pixel < 64)
-    {
-        pixel = 4 * pixel;
-    }
-    else if (pixel < 128)
-    {
-        pixel = 255 / 3;
-    }
-    else if (pixel)
-    {
-        pixel = 255 / 3 + 4 * (pixel - 128);
-    }
-    else
-    {
-        pixel = 255;
-    }
-}
-
-/*
- * Contrast enhancement with a piecewise linear function
-*/
-cv::Mat contrastEnhancement(const cv::Mat &src)
-{
-    cv::Mat dst = src.clone();
-
-    for (int i = 0; i < dst.rows; i++)
-    {
-        for (int j = 0; j < dst.cols; j++)
-        {
-            contrastEnhancementInPixelChannel(dst.at<cv::Vec3b>(i, j)[0]);
-            contrastEnhancementInPixelChannel(dst.at<cv::Vec3b>(i, j)[1]);
-            contrastEnhancementInPixelChannel(dst.at<cv::Vec3b>(i, j)[2]);
-        }
-    }
-
-    return dst;
-}
-
 /*
  * Linear transformation to increase image brightness
+ *
+ * This function performs a brightness increase operation on the input image by adding
+ * a specified value to the intensity values of each pixel.
+ * The function takes two arguments, the input image src and the value by which the brightness is increased.
  */
 cv::Mat brightnessIncrease(const cv::Mat &src, const int value)
 {
@@ -112,9 +85,43 @@ cv::Mat brightnessIncrease(const cv::Mat &src, const int value)
     {
         for (int j = 0; j < dst.cols; j++)
         {
-            dst.at<cv::Vec3b>(i, j)[0] = dst.at<cv::Vec3b>(i, j)[0] + value > 255 ? 255 : dst.at<cv::Vec3b>(i, j)[0] + value;
-            dst.at<cv::Vec3b>(i, j)[1] = dst.at<cv::Vec3b>(i, j)[1] + value > 255 ? 255 : dst.at<cv::Vec3b>(i, j)[1] + value;
-            dst.at<cv::Vec3b>(i, j)[2] = dst.at<cv::Vec3b>(i, j)[2] + value > 255 ? 255 : dst.at<cv::Vec3b>(i, j)[2] + value;
+            dst.at<cv::Vec3b>(i, j)[0] = dst.at<cv::Vec3b>(i, j)[0] + value > 255 ?
+                    255 : dst.at<cv::Vec3b>(i, j)[0] + value;
+            dst.at<cv::Vec3b>(i, j)[1] = dst.at<cv::Vec3b>(i, j)[1] + value > 255 ?
+                    255 : dst.at<cv::Vec3b>(i, j)[1] + value;
+            dst.at<cv::Vec3b>(i, j)[2] = dst.at<cv::Vec3b>(i, j)[2] + value > 255 ?
+                    255 : dst.at<cv::Vec3b>(i, j)[2] + value;
+        }
+    }
+
+    return dst;
+}
+
+/*
+ * The function takes an input image src in OpenCV Mat format and two parameters alpha and beta.
+ * The parameters alpha and beta are used to determine the boundary values between the two parts
+ * of the linear function, which is used to change the contrast of the image.
+ */
+cv::Mat piecewiseLinearTransform(const cv::Mat& src, float alpha, float beta)
+{
+    cv::Mat dst = src.clone();
+
+    for (int i = 0; i < src.rows; i++)
+    {
+        for (int j = 0; j < src.cols; j++)
+        {
+            cv::Vec3b pixel_value = src.at<cv::Vec3b>(i, j);
+            for (int k = 0; k < 3; k++)
+            {
+                if (pixel_value[k] < 127)
+                {
+                    pixel_value[k] = alpha * pixel_value[k];
+                } else
+                {
+                    pixel_value[k] = beta * pixel_value[k] + (1 - beta) * 255;
+                }
+            }
+            dst.at<cv::Vec3b>(i, j) = pixel_value;
         }
     }
 
@@ -129,47 +136,45 @@ int main() {
     std::cout << "1. Negative" << std::endl;
     std::cout << "2. Logarithmic" << std::endl;
     std::cout << "3. Stepwise" << std::endl;
-    std::cout << "4. Contrast enhancement" << std::endl;
-    std::cout << "5. Brightness increase" << std::endl;
+    std::cout << "4. Brightness increase" << std::endl;
+    std::cout << "5. Piecewise linear transformation" << std::endl;
     std::cout << "Option: ";
 
     int menu;
     std::cin >> menu;
 
-    if (menu == 1)
+    switch (menu)
     {
-        src = cv::imread("../images/image1.JPG");
-        dst = negative(src);
-    }
-    else if (menu == 2)
-    {
-        src = cv::imread("../images/image1.JPG");
-        dst = logarithmic(src);
-    }
-    else if (menu == 3)
-    {
-        src = cv::imread("../images/image1.JPG");
-        dst = stepwise(src, 1, 0.5);
-    }
-    else if (menu == 4)
-    {
-        src = cv::imread("../images/image1.JPG");
-        dst = contrastEnhancement(src);
-    }
-    else if (menu == 5)
-    {
-        src = cv::imread("../images/image1.JPG");
-        dst = brightnessIncrease(src, 60);
-    }
-    else
-    {
-        std::cout << "Invalid option" << std::endl;
-        return -1;
+        case 1:
+            src = cv::imread("../images/image1.JPG");
+            dst = negative(src);
+            break;
+        case 2:
+            src = cv::imread("../images/image1.JPG");
+            dst = logarithmic(src);
+            break;
+        case 3:
+            src = cv::imread("../images/image1.JPG");
+            dst = stepwise(src, 1, 0.8);
+            break;
+        case 4:
+            src = cv::imread("../images/image1.JPG");
+            dst = brightnessIncrease(src, 60);
+            break;
+        case 5:
+            src = cv::imread("../images/image1.JPG");
+            dst = piecewiseLinearTransform(src, 0.5, 0.5);
+            break;
+        default:
+            std::cout << "Invalid option" << std::endl;
+            return 0;
     }
 
     cv::imshow("Source", src);
     cv::imshow("Result", dst);
     cv::waitKey(0);
+
+    cv::imwrite("../result.jpg", dst);
 
     return 0;
 }
