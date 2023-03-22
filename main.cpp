@@ -104,60 +104,59 @@ void saveGradient(const cv::Mat& image, const std::string& imageName)
     cv::imwrite("../results/" + imageName + "_gradient5.jpg", gradient2);
 }
 
-void saveCombine(const cv::Mat& src)
+
+/*
+ * Combining image sharpening methods: Laplace operator, unsharp masking and Sobel operator.
+ */
+cv::Mat combineMethods(const cv::Mat& image)
 {
-    cv::Mat laplacian;
-    cv::Laplacian(src, laplacian, CV_16S);
-    cv::convertScaleAbs(laplacian, laplacian);
+    using namespace cv;
 
-    cv::Mat result = src + laplacian;
+    Mat sharpen_kernel = (Mat_<float>(3,3) <<
+                                           -1, -1, -1,
+            -1,  9, -1,
+            -1, -1, -1);
 
-    cv::imshow("result", result);
+    Mat sharpened;
+    filter2D(image, sharpened, image.depth(), sharpen_kernel);
 
-    cv::Mat gradient2 = gradientSobel(src, 5);
+    Mat grad;
+    Mat grad_x, grad_y;
+    Mat abs_grad_x, abs_grad_y;
 
-    cv::imshow("gradient2", gradient2);
+    Sobel(image, grad_x, image.depth(), 1, 0, 3, 1, 0, BORDER_DEFAULT);
+    Sobel(image, grad_y, image.depth(), 0, 1, 3, 1, 0, BORDER_DEFAULT);
 
-    // gauss blur to gradient2
-    const int kernelSize = 5;
-    const double sigma = 3;
-    cv::Mat gradient2_gauss;
-    GaussianBlur(gradient2, gradient2_gauss,
-                 cv::Size(kernelSize, kernelSize),
-                 sigma);
+    convertScaleAbs(grad_x, abs_grad_x);
+    convertScaleAbs(grad_y, abs_grad_y);
 
-    cv::imshow("gradient2_gauss", gradient2_gauss);
+    addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, grad);
 
-    // result * gradient2_gauss
-    cv::Mat result2;
-    cv::multiply(result, gradient2_gauss, result2);
+    Mat laplacian;
+    Laplacian(image, laplacian, image.depth(), 3, 1, 0, BORDER_DEFAULT);
 
-    cv::imshow("result2", result2);
+    Mat sharpened_image;
 
-    // src + result2
-    cv::Mat result3 = src + result2;
+    addWeighted(image, 1.0, laplacian, -0.5, 0, sharpened_image);
 
-    cv::imshow("result3", result3);
-    cv::waitKey(0);
+    addWeighted(sharpened_image, 1.0, grad, 0.7, 0, sharpened_image);
 
-    //cv::imwrite("../results/image3_combine_laplacian.jpg", laplacian);
-    //cv::imwrite("../results/image3_combine_src_lapl.jpg", result);
-    //cv::imwrite("../results/image3_combine_gradient.jpg", gradient2);
+    return sharpened_image;
 }
 
 int main()
 {
-    cv::Mat image = cv::imread("../images/image3.jpeg");
+    cv::Mat image = cv::imread("../images/flowers.jpg");
     cv::imshow("Original", image);
 
-    //saveLaplacian(image);
+    saveLaplacian(image);
 
-    //saveSharpen(image);
+    saveSharpen(image);
 
-    //saveGradient(image, "image2");
+    saveGradient(image, "image2");
 
-    saveCombine(image);
+    cv::Mat dst = combineMethods(image);
+    cv::imwrite("../results/flowers_sharpened.jpg", dst);
 
-    cv::waitKey(0);
     return 0;
 }
